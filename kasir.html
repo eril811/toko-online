@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kasir</title><link rel="stylesheet" href="style.css"></head><body>
+<header><b>🧾 Kasir</b><span><a class="btn gray" href="/">Lihat Toko</a> <button id="out" onclick="db.auth.signOut().then(init)" style="display:none">Keluar</button></span></header>
+<main id="m"></main>
+<div id="ed" class="panel" style="display:none;position:fixed;inset:10px;overflow:auto;z-index:9"><div id="edb"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script>
+const db=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY),rp=n=>"Rp"+Number(n).toLocaleString("id-ID"),$=i=>document.getElementById(i),m=$("m"),esc=s=>String(s??"").replace(/"/g,"&quot;");
+let O=[],P=[],sub=false;
+async function init(){const{data:{session}}=await db.auth.getSession();$("out").style.display=session?"":"none";
+if(!session){m.innerHTML=`<div class="panel" style="max-width:360px;margin:auto"><h3>Login Kasir</h3><input id="e" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button onclick="login()">Masuk</button></div>`;return}
+m.innerHTML=`<div class="chips"><button id="t1" class="on" onclick="tab(1)">📥 Pesanan <b id="nb"></b></button><button id="t2" onclick="tab(2)">📦 Produk</button></div><div id="v1"></div><div id="v2" style="display:none"></div>`;
+loadO();loadP();if(!sub){sub=true;if("Notification" in window)Notification.requestPermission();
+db.channel("o").on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},p=>{const x=p.new,t=`🔔 Pesanan baru: ${x.customer_name} - ${rp(x.total)}`;beep();toast(t);if(window.Notification&&Notification.permission=="granted")new Notification("Pesanan baru",{body:t});loadO()}).subscribe()}}
+async function login(){const{error}=await db.auth.signInWithPassword({email:$("e").value,password:$("pw").value});error?alert(error.message):init()}
+function tab(n){[1,2].forEach(i=>{$("v"+i).style.display=i==n?"":"none";$("t"+i).classList.toggle("on",i==n)})}
+function beep(){try{const a=new AudioContext(),o=a.createOscillator();o.connect(a.destination);o.frequency.value=880;o.start();o.stop(a.currentTime+.4)}catch(e){}}
+function toast(t){const d=document.createElement("div");d.textContent=t;d.style.cssText="position:fixed;top:60px;left:10px;right:10px;background:#16a34a;color:#fff;padding:14px;border-radius:10px;z-index:99;font-weight:700";document.body.appendChild(d);setTimeout(()=>d.remove(),7000)}
+const sum=it=>it.reduce((s,i)=>s+i.qty*i.price,0);
+async function loadO(){const{data}=await db.from("orders").select("*").order("id",{ascending:false});O=data||[];const n=O.filter(x=>x.status=="baru").length;$("nb").textContent=n?`(${n} baru)`:"";document.title=(n?`(${n}) `:"")+"Kasir";
+$("v1").innerHTML=O.map(x=>`<div class="panel row" style="${x.status=="baru"?"background:#fff7ed":""}"><span><b>#${x.id} ${x.customer_name}</b> (${x.phone})<br>${x.items.map(i=>i.name+" x"+i.qty).join(", ")}<br>${x.address}<br><b>${rp(x.total)}</b> <small>${new Date(x.created_at).toLocaleString("id-ID")}</small></span>
+<span><button onclick="openO(${x.id})">Edit/Cetak</button> <select style="width:120px" onchange="st(${x.id},this.value)">${["baru","diproses","dikirim","selesai","batal"].map(s=>`<option ${s==x.status?"selected":""}>${s}</option>`).join("")}</select></span></div>`).join("")||"Belum ada pesanan"}
+async function st(id,v){await db.from("orders").update({status:v}).eq("id",id);loadO()}
+async function loadP(){const{data}=await db.from("products").select("*").order("id",{ascending:false});P=data||[];
+$("v2").innerHTML=`<button onclick="openP()">+ Tambah Produk</button><div style="height:12px"></div>`+P.map(x=>`<div class="panel row"><span style="display:flex;gap:10px;align-items:center"><img class="thumb" src="${esc(x.image_url)}"><span><b>${x.name}</b><br>${x.promo_price>0?`<span class="old">${rp(x.price)}</span> ${rp(x.promo_price)}`:rp(x.price)}${(x.tiers||[]).length?" · grosir":""}</span></span>
+<span>Stok <input type="number" value="${x.stock}" style="width:75px" onchange="stk(${x.id},this.value)"> <button onclick="openP(${x.id})">Edit</button> <button class="red" onclick="delP(${x.id})">Hapus</button></span></div>`).join("")}
+async function stk(id,v){await db.from("products").update({stock:+v}).eq("id",id)}
+async function delP(id){if(confirm("Hapus produk?")){await db.from("products").delete().eq("id",id);loadP()}}
+const ptr=v=>v.split(",").map(s=>s.trim().split(":")).filter(x=>x.length==2&&+x[0]>0&&+x[1]>=0).map(x=>({min:+x[0],price:+x[1]}));
+const rs=f=>new Promise(r=>{const i=new Image;i.onload=()=>{const s=Math.min(1,800/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(r,"image/jpeg",.8)};i.src=URL.createObjectURL(f)});
+function openP(id){const x=P.find(p=>p.id==id)||{name:"",price:"",promo_price:"",stock:0,description:"",image_url:"",tiers:[]};$("ed").style.display="block";
+$("edb").innerHTML=`<h3>${id?"Edit":"Tambah"} Produk</h3>Nama<input id="pn" value="${esc(x.name)}">Harga<input id="pp" type="number" value="${x.price}">Harga promo (kosongkan jika tidak promo)<input id="ppr" type="number" value="${x.promo_price||""}">Stok<input id="ps" type="number" value="${x.stock}">Deskripsi<textarea id="pd">${x.description||""}</textarea>
+Harga grosir (jumlah:harga, pisah koma)<input id="pt" value="${(x.tiers||[]).map(t=>t.min+":"+t.price).join(",")}" placeholder="10:70000,50:65000">Foto produk<br><img id="pv" class="thumb" style="width:90px;height:90px" src="${esc(x.image_url)}"><input id="pf" type="file" accept="image/*" onchange="pv.src=URL.createObjectURL(this.files[0])"><br><br>
+<button onclick="saveP(${id||0})">Simpan</button> <button class="gray" onclick="$('ed').style.display='none'">Batal</button>`}
+async function saveP(id){let url=(P.find(p=>p.id==id)||{}).image_url||"";const f=$("pf").files[0];
+if(f){const path=Date.now()+".jpg",{error:e}=await db.storage.from("products").upload(path,await rs(f),{contentType:"image/jpeg"});if(e)return alert("Upload gagal: "+e.message);url=db.storage.from("products").getPublicUrl(path).data.publicUrl}
+const d={name:$("pn").value,price:+$("pp").value,promo_price:+$("ppr").value||null,stock:+$("ps").value,description:$("pd").value,tiers:ptr($("pt").value),image_url:url};
+if(!d.name)return alert("Nama wajib diisi");const{error}=id?await db.from("products").update(d).eq("id",id):await db.from("products").insert(d);
+if(error)return alert(error.message);$("ed").style.display="none";loadP()}
+const rowH=i=>`<div class="row r"><input class="rn" value="${esc(i.name)}" placeholder="Nama barang/biaya" style="flex:1"><input class="rq" type="number" value="${i.qty}" style="width:70px" oninput="calc()"><input class="rp" type="number" value="${i.price}" style="width:110px" oninput="calc()"></div>`;
+const get=()=>[...document.querySelectorAll("#rows .r")].map(r=>({name:r.querySelector(".rn").value,qty:+r.querySelector(".rq").value,price:+r.querySelector(".rp").value})).filter(i=>i.name);
+function calc(){$("et").textContent=rp(sum(get()))}
+function openO(id){const x=O.find(o=>o.id==id);$("ed").style.display="block";$("ed").dataset.id=id;
+$("edb").innerHTML=`<h3>Pesanan #${id} - ${x.customer_name}</h3><small>Ubah jumlah/harga. Tambah baris untuk ongkir (diskon: harga minus).</small><div id="rows">${x.items.map(i=>rowH(i)).join("")}</div><button class="gray" onclick="$('rows').insertAdjacentHTML('beforeend',rowH({name:'',qty:1,price:0}))">+ Baris</button><h4>Total: <span id="et"></span></h4><button onclick="saveO()">Simpan</button> <button onclick="printO()">🖨 Cetak Struk</button> <button class="gray" onclick="$('ed').style.display='none'">Tutup</button>`;calc()}
+async function saveO(){const id=$("ed").dataset.id,it=get();const{error}=await db.from("orders").update({items:it,total:sum(it)}).eq("id",id);if(error)return alert(error.message);alert("Tersimpan");loadO()}
+function printO(){const id=$("ed").dataset.id,x=O.find(o=>o.id==id),it=get();
+const w=window.open("");w.document.write(`<html><body style="font:12px monospace;width:58mm;margin:0 auto"><h3 style="text-align:center;margin:4px">${CFG.STORE_NAME}</h3><div style="text-align:center">${new Date(x.created_at).toLocaleString("id-ID")}<br>Order #${id}</div><hr>Pembeli: ${x.customer_name}<br>${x.phone}<br>${x.address}<hr>`+it.map(i=>`${i.name}<br>${i.qty} x ${rp(i.price)}<span style="float:right">${rp(i.qty*i.price)}</span><br>`).join("")+`<hr><b>TOTAL<span style="float:right">${rp(sum(it))}</span></b><p style="text-align:center">Terima kasih</p></body></html>`);w.document.close();w.focus();w.print()}
+init();
+</script></body></html>

@@ -1,31 +1,36 @@
 <!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Toko Online</title><link rel="stylesheet" href="style.css"></head><body>
-<header><b id="nm"></b><button onclick="tgl()">🛒 Keranjang (<span id="cnt">0</span>)</button></header>
-<main><div class="grid" id="list">Memuat...</div></main>
+<header><b id="nm"></b><input id="q" placeholder="🔍 Cari produk..." oninput="show()" style="max-width:240px;margin:0 8px"><button onclick="tgl()">🛒 <span id="cnt">0</span></button></header>
+<section class="hero"><h1 id="bt"></h1><p id="bx"></p></section>
+<main><div class="chips"><button class="on" data-f="all" onclick="flt(this)">Semua</button><button data-f="promo" onclick="flt(this)">🔥 Promo</button><button data-f="new" onclick="flt(this)">✨ Baru</button></div><div class="grid" id="list">Memuat...</div></main>
 <div id="cart"><h3>Keranjang</h3><div id="items"></div><h4>Total: <span id="tot"></span></h4>
 <input id="n" placeholder="Nama"><input id="p" placeholder="No. WhatsApp"><textarea id="a" placeholder="Alamat lengkap"></textarea>
 <button onclick="order()">Pesan Sekarang</button> <button class="gray" onclick="tgl()">Tutup</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
 <script>
-const db=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY),rp=n=>"Rp"+Number(n).toLocaleString("id-ID");
-let P=[],C=JSON.parse(localStorage.getItem("cart")||"{}");const $=i=>document.getElementById(i);
+const db=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY),rp=n=>"Rp"+Number(n).toLocaleString("id-ID"),$=i=>document.getElementById(i);
+const base=p=>p.promo_price>0?p.promo_price:p.price,isNew=p=>Date.now()-new Date(p.created_at)<12096e5;
+const U=(p,q)=>{const t=(p.tiers||[]).filter(x=>q>=x.min).sort((a,b)=>b.min-a.min)[0];return t?t.price:base(p)};
+let P=[],F="all",C=JSON.parse(localStorage.getItem("cart")||"{}");
 $("nm").textContent=CFG.STORE_NAME;document.title=CFG.STORE_NAME;
+$("bt").textContent=CFG.BANNER_TITLE||"Promo Spesial Minggu Ini 🔥";$("bx").textContent=CFG.BANNER_TEXT||"Belanja mudah, pesan langsung lewat WhatsApp";
 function tgl(){const c=$("cart");c.style.display=c.style.display=="block"?"none":"block"}
+function flt(b){F=b.dataset.f;document.querySelectorAll(".chips button").forEach(x=>x.classList.toggle("on",x==b));show()}
+function card(p){return`<div class="card">${p.promo_price>0?'<span class="badge">PROMO</span>':""}${isNew(p)?'<span class="badge b2">BARU</span>':""}<img src="${p.image_url||""}" alt=""><div><b>${p.name}</b><small>${p.description||""}</small>${(p.tiers||[]).length?"<small>Grosir: "+p.tiers.map(x=>"≥"+x.min+" = "+rp(x.price)).join(", ")+"</small>":""}
+<span class="price">${rp(base(p))} ${p.promo_price>0?`<span class="old">${rp(p.price)}</span>`:""}</span><button onclick="add(${p.id})" ${p.stock<1?"disabled":""}>${p.stock<1?"Habis":"+ Keranjang"}</button></div></div>`}
+function show(){const q=$("q").value.toLowerCase();$("list").innerHTML=P.filter(p=>p.name.toLowerCase().includes(q)&&(F=="all"||(F=="promo"&&p.promo_price>0)||(F=="new"&&isNew(p)))).map(card).join("")||"Produk tidak ditemukan"}
 function save(){localStorage.setItem("cart",JSON.stringify(C));draw()}
-function add(id){C[id]=(C[id]||0)+1;save()}
-function chg(id,d){C[id]+=d;if(C[id]<=0)delete C[id];save()}
-function draw(){let t=0,n=0,h="";for(const id in C){const p=P.find(x=>x.id==id);if(!p)continue;t+=p.price*C[id];n+=C[id];
-h+=`<div class="row"><span>${p.name}<br>${rp(p.price)}</span><span><button onclick="chg(${id},-1)">-</button> ${C[id]} <button onclick="chg(${id},1)">+</button></span></div>`}
+function add(id){const p=P.find(x=>x.id==id);if((C[id]||0)>=p.stock)return alert("Stok terbatas");C[id]=(C[id]||0)+1;save()}
+function chg(id,d){const p=P.find(x=>x.id==id);if(d>0&&C[id]>=p.stock)return alert("Stok terbatas");C[id]+=d;if(C[id]<=0)delete C[id];save()}
+function draw(){let t=0,n=0,h="";for(const id in C){const p=P.find(x=>x.id==id);if(!p)continue;const u=U(p,C[id]);t+=u*C[id];n+=C[id];
+h+=`<div class="row"><span>${p.name}<br>${rp(u)}</span><span><button onclick="chg(${id},-1)">-</button> ${C[id]} <button onclick="chg(${id},1)">+</button></span></div>`}
 $("items").innerHTML=h||"Kosong";$("tot").textContent=rp(t);$("cnt").textContent=n}
-(async()=>{const{data,error}=await db.from("products").select("*").eq("active",true).order("id");
-if(error){$("list").textContent="Gagal memuat: "+error.message;return}P=data;
-$("list").innerHTML=P.map(p=>`<div class="card"><img src="${p.image_url||""}" alt=""><div><b>${p.name}</b><small>${p.description||""}</small>
-<span class="price">${rp(p.price)}</span><button onclick="add(${p.id})" ${p.stock<1?"disabled":""}>${p.stock<1?"Habis":"+ Keranjang"}</button></div></div>`).join("");draw()})();
-async function order(){const items=Object.keys(C).map(id=>{const p=P.find(x=>x.id==id);return{id:p.id,name:p.name,price:p.price,qty:C[id]}});
+(async()=>{const{data,error}=await db.from("products").select("*").eq("active",true).order("id",{ascending:false});
+if(error){$("list").textContent="Gagal memuat: "+error.message;return}P=data;show();draw()})();
+async function order(){const items=Object.keys(C).map(id=>{const p=P.find(x=>x.id==id);return{id:p.id,name:p.name,price:U(p,C[id]),qty:C[id]}});
 if(!items.length)return alert("Keranjang kosong");const name=$("n").value.trim(),phone=$("p").value.trim(),addr=$("a").value.trim();
 if(!name||!phone||!addr)return alert("Lengkapi data");const total=items.reduce((s,i)=>s+i.price*i.qty,0);
 const{error}=await db.from("orders").insert({customer_name:name,phone,address:addr,items,total});if(error)return alert(error.message);
 let wa="";if(CFG.WA_NUMBER){const m=`Halo ${CFG.STORE_NAME}, saya ${name}\nNo: ${phone}\n\nPesanan:\n`+items.map(i=>`- ${i.name} x${i.qty} = ${rp(i.price*i.qty)}`).join("\n")+`\n\nTotal: ${rp(total)}\nAlamat: ${addr}`;wa=`https://wa.me/${CFG.WA_NUMBER}?text=${encodeURIComponent(m)}`}
-C={};save();tgl();
-alert("Pesanan terkirim, terima kasih!");if(wa)location.href=wa}
+C={};save();tgl();alert("Pesanan terkirim, terima kasih!");if(wa)location.href=wa}
 </script></body></html>
