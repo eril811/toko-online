@@ -25,6 +25,7 @@ async function order(){const items=Object.keys(C).map(id=>{const p=P.find(x=>x.i
 if(!items.length)return alert("Keranjang kosong");const name=$("n").value.trim(),phone=$("p").value.trim(),addr=$("a").value.trim();
 if(!name||!phone||!addr)return alert("Lengkapi data");const total=items.reduce((s,i)=>s+i.price*i.qty,0);
 const{error}=await db.from("orders").insert({customer_name:name,phone,address:addr,items,total});if(error)return alert(error.message);
-if(CFG.WA_NUMBER){const m=`Halo, saya ${name}%0APesanan:%0A`+items.map(i=>`- ${i.name} x${i.qty}`).join("%0A")+`%0ATotal: ${rp(total)}%0AAlamat: ${addr}`;window.open(`https://wa.me/${CFG.WA_NUMBER}?text=${m}`)}
-C={};save();tgl();alert("Pesanan terkirim, terima kasih!")}
+let wa="";if(CFG.WA_NUMBER){const m=`Halo ${CFG.STORE_NAME}, saya ${name}\nNo: ${phone}\n\nPesanan:\n`+items.map(i=>`- ${i.name} x${i.qty} = ${rp(i.price*i.qty)}`).join("\n")+`\n\nTotal: ${rp(total)}\nAlamat: ${addr}`;wa=`https://wa.me/${CFG.WA_NUMBER}?text=${encodeURIComponent(m)}`}
+C={};save();tgl();
+alert("Pesanan terkirim, terima kasih!");if(wa)location.href=wa}
 </script></body></html>
