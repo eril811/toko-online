@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin</title><link rel="stylesheet" href="style.css"></head><body>
+<header><b>Admin Toko</b><span><a class="btn gray" href="/">Lihat Toko</a> <button id="out" onclick="db.auth.signOut().then(init)" style="display:none">Keluar</button></span></header>
+<main id="m"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script>
+const db=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY),rp=n=>"Rp"+Number(n).toLocaleString("id-ID"),$=i=>document.getElementById(i),m=$("m");
+async function init(){const{data:{session}}=await db.auth.getSession();$("out").style.display=session?"":"none";
+if(!session){m.innerHTML=`<div class="panel" style="max-width:360px;margin:auto"><h3>Login Admin</h3><input id="e" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button onclick="login()">Masuk</button></div>`;return}
+m.innerHTML=`<div class="panel"><h3>Tambah Produk</h3><input id="pn" placeholder="Nama"><input id="pp" type="number" placeholder="Harga"><input id="ps" type="number" placeholder="Stok">
+<input id="pi" placeholder="URL gambar"><textarea id="pd" placeholder="Deskripsi"></textarea><button onclick="addP()">Simpan</button></div>
+<div class="panel"><h3>Produk</h3><div id="pl"></div></div><div class="panel"><h3>Pesanan</h3><div id="ol"></div></div>`;load()}
+async function login(){const{error}=await db.auth.signInWithPassword({email:$("e").value,password:$("pw").value});error?alert(error.message):init()}
+async function addP(){const{error}=await db.from("products").insert({name:$("pn").value,price:+$("pp").value,stock:+$("ps").value,image_url:$("pi").value,description:$("pd").value});error?alert(error.message):init()}
+async function del(id){if(confirm("Hapus?")){await db.from("products").delete().eq("id",id);load()}}
+async function stok(id,v){await db.from("products").update({stock:+v}).eq("id",id)}
+async function st(id,v){await db.from("orders").update({status:v}).eq("id",id)}
+async function load(){const{data:p}=await db.from("products").select("*").order("id");
+$("pl").innerHTML=p.map(x=>`<div class="row"><span>${x.name} - ${rp(x.price)}</span><span>Stok <input type="number" value="${x.stock}" style="width:80px" onchange="stok(${x.id},this.value)"> <button class="red" onclick="del(${x.id})">Hapus</button></span></div>`).join("");
+const{data:o}=await db.from("orders").select("*").order("id",{ascending:false});
+$("ol").innerHTML=o.map(x=>`<div class="row"><span><b>#${x.id} ${x.customer_name}</b> (${x.phone})<br>${x.items.map(i=>i.name+" x"+i.qty).join(", ")}<br>${x.address}<br><b>${rp(x.total)}</b></span>
+<select style="width:130px" onchange="st(${x.id},this.value)">${["baru","diproses","dikirim","selesai","batal"].map(s=>`<option ${s==x.status?"selected":""}>${s}</option>`).join("")}</select></div>`).join("")||"Belum ada pesanan"}
+init();
+</script></body></html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Toko Online</title><link rel="stylesheet" href="style.css"></head><body>
+<header><b id="nm"></b><button onclick="tgl()">🛒 Keranjang (<span id="cnt">0</span>)</button></header>
+<main><div class="grid" id="list">Memuat...</div></main>
+<div id="cart"><h3>Keranjang</h3><div id="items"></div><h4>Total: <span id="tot"></span></h4>
+<input id="n" placeholder="Nama"><input id="p" placeholder="No. WhatsApp"><textarea id="a" placeholder="Alamat lengkap"></textarea>
+<button onclick="order()">Pesan Sekarang</button> <button class="gray" onclick="tgl()">Tutup</button></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script>
+const db=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY),rp=n=>"Rp"+Number(n).toLocaleString("id-ID");
+let P=[],C=JSON.parse(localStorage.getItem("cart")||"{}");const $=i=>document.getElementById(i);
+$("nm").textContent=CFG.STORE_NAME;document.title=CFG.STORE_NAME;
+function tgl(){const c=$("cart");c.style.display=c.style.display=="block"?"none":"block"}
+function save(){localStorage.setItem("cart",JSON.stringify(C));draw()}
+function add(id){C[id]=(C[id]||0)+1;save()}
+function chg(id,d){C[id]+=d;if(C[id]<=0)delete C[id];save()}
+function draw(){let t=0,n=0,h="";for(const id in C){const p=P.find(x=>x.id==id);if(!p)continue;t+=p.price*C[id];n+=C[id];
+h+=`<div class="row"><span>${p.name}<br>${rp(p.price)}</span><span><button onclick="chg(${id},-1)">-</button> ${C[id]} <button onclick="chg(${id},1)">+</button></span></div>`}
+$("items").innerHTML=h||"Kosong";$("tot").textContent=rp(t);$("cnt").textContent=n}
+(async()=>{const{data,error}=await db.from("products").select("*").eq("active",true).order("id");
+if(error){$("list").textContent="Gagal memuat: "+error.message;return}P=data;
+$("list").innerHTML=P.map(p=>`<div class="card"><img src="${p.image_url||""}" alt=""><div><b>${p.name}</b><small>${p.description||""}</small>
+<span class="price">${rp(p.price)}</span><button onclick="add(${p.id})" ${p.stock<1?"disabled":""}>${p.stock<1?"Habis":"+ Keranjang"}</button></div></div>`).join("");draw()})();
+async function order(){const items=Object.keys(C).map(id=>{const p=P.find(x=>x.id==id);return{id:p.id,name:p.name,price:p.price,qty:C[id]}});
+if(!items.length)return alert("Keranjang kosong");const name=$("n").value.trim(),phone=$("p").value.trim(),addr=$("a").value.trim();
+if(!name||!phone||!addr)return alert("Lengkapi data");const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+const{error}=await db.from("orders").insert({customer_name:name,phone,address:addr,items,total});if(error)return alert(error.message);
+if(CFG.WA_NUMBER){const m=`Halo, saya ${name}%0APesanan:%0A`+items.map(i=>`- ${i.name} x${i.qty}`).join("%0A")+`%0ATotal: ${rp(total)}%0AAlamat: ${addr}`;window.open(`https://wa.me/${CFG.WA_NUMBER}?text=${m}`)}
+C={};save();tgl();alert("Pesanan terkirim, terima kasih!")}
+</script></body></html>
