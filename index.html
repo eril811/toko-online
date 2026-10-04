@@ -1,8 +1,9 @@
 <!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Toko Online</title><link rel="stylesheet" href="style.css"></head><body>
+<title>Toko Online</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head><body>
 <header><b id="nm"></b><input id="q" placeholder="🔍 Cari produk..." oninput="show()" style="max-width:240px;margin:0 8px"><button onclick="tgl()">🛒 <span id="cnt">0</span></button></header>
-<section class="hero"><h1 id="bt"></h1><p id="bx"></p></section>
-<main><div class="chips"><button class="on" data-f="all" onclick="flt(this)">Semua</button><button data-f="promo" onclick="flt(this)">🔥 Promo</button><button data-f="new" onclick="flt(this)">✨ Baru</button></div><div class="grid" id="list">Memuat...</div></main>
+<section class="hero"><small>KOLEKSI PILIHAN</small><h1 id="bt"></h1><p id="bx"></p><a class="btn gold" href="#produk">Belanja Sekarang</a></section>
+<main id="produk"><div class="chips"><button class="on" data-f="all" onclick="flt(this)">Semua</button><button data-f="promo" onclick="flt(this)">🔥 Promo</button><button data-f="new" onclick="flt(this)">✨ Baru</button></div><div class="grid" id="list">Memuat...</div></main>
+<footer>© <span id="yr"></span> <span id="fn"></span> · Pesan mudah via WhatsApp</footer><a id="wa" class="wafab" target="_blank">💬</a>
 <div id="cart"><h3>Keranjang</h3><div id="items"></div><h4>Total: <span id="tot"></span></h4>
 <input id="n" placeholder="Nama"><input id="p" placeholder="No. WhatsApp"><textarea id="a" placeholder="Alamat lengkap"></textarea>
 <button onclick="order()">Pesan Sekarang</button> <button class="gray" onclick="tgl()">Tutup</button></div>
@@ -13,7 +14,8 @@ const base=p=>p.promo_price>0?p.promo_price:p.price,isNew=p=>Date.now()-new Date
 const U=(p,q)=>{const t=(p.tiers||[]).filter(x=>q>=x.min).sort((a,b)=>b.min-a.min)[0];return t?t.price:base(p)};
 let P=[],F="all",C=JSON.parse(localStorage.getItem("cart")||"{}");
 $("nm").textContent=CFG.STORE_NAME;document.title=CFG.STORE_NAME;
-$("bt").textContent=CFG.BANNER_TITLE||"Promo Spesial Minggu Ini 🔥";$("bx").textContent=CFG.BANNER_TEXT||"Belanja mudah, pesan langsung lewat WhatsApp";
+$("bt").textContent=CFG.BANNER_TITLE||"Koleksi Terbaik, Harga Terbaik";$("bx").textContent=CFG.BANNER_TEXT||"Belanja mudah, pesan langsung lewat WhatsApp";
+$("yr").textContent=new Date().getFullYear();$("fn").textContent=CFG.STORE_NAME;CFG.WA_NUMBER?$("wa").href="https://wa.me/"+CFG.WA_NUMBER:$("wa").style.display="none";
 function tgl(){const c=$("cart");c.style.display=c.style.display=="block"?"none":"block"}
 function flt(b){F=b.dataset.f;document.querySelectorAll(".chips button").forEach(x=>x.classList.toggle("on",x==b));show()}
 function card(p){return`<div class="card">${p.promo_price>0?'<span class="badge">PROMO</span>':""}${isNew(p)?'<span class="badge b2">BARU</span>':""}<img src="${p.image_url||""}" alt=""><div><b>${p.name}</b><small>${p.description||""}</small>${(p.tiers||[]).length?"<small>Grosir: "+p.tiers.map(x=>"≥"+x.min+" = "+rp(x.price)).join(", ")+"</small>":""}
