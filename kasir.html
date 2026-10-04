@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kasir</title><link rel="stylesheet" href="style.css"></head><body>
-<header><b>🧾 Kasir</b><span><a class="btn gray" href="/">Lihat Toko</a> <button id="out" onclick="db.auth.signOut().then(init)" style="display:none">Keluar</button></span></header>
+<title>Kasir</title><link rel="manifest" href="/manifest-kasir.json"><meta name="theme-color" content="#111111"><link rel="apple-touch-icon" href="/icon-192.png"><link rel="stylesheet" href="style.css"></head><body>
+<header><b>🧾 Kasir</b><span><a class="btn gray" href="/">Lihat Toko</a> <button id="inst" class="gray" style="display:none" onclick="inst()">⬇ Pasang</button> <button id="out" onclick="db.auth.signOut().then(init)" style="display:none">Keluar</button></span></header>
 <main id="m"></main>
 <div id="ed" class="panel" style="display:none;position:fixed;inset:10px;overflow:auto;z-index:9"><div id="edb"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
@@ -26,15 +26,16 @@ $("v2").innerHTML=`<button onclick="openP()">+ Tambah Produk</button><div style=
 <span>Stok <input type="number" value="${x.stock}" style="width:75px" onchange="stk(${x.id},this.value)"> <button onclick="openP(${x.id})">Edit</button> <button class="red" onclick="delP(${x.id})">Hapus</button></span></div>`).join("")}
 async function stk(id,v){await db.from("products").update({stock:+v}).eq("id",id)}
 async function delP(id){if(confirm("Hapus produk?")){await db.from("products").delete().eq("id",id);loadP()}}
+const sp=v=>v.split(",").map(s=>s.trim()).filter(Boolean);
 const ptr=v=>v.split(",").map(s=>s.trim().split(":")).filter(x=>x.length==2&&+x[0]>0&&+x[1]>=0).map(x=>({min:+x[0],price:+x[1]}));
 const rs=f=>new Promise(r=>{const i=new Image;i.onload=()=>{const s=Math.min(1,800/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(r,"image/jpeg",.8)};i.src=URL.createObjectURL(f)});
-function openP(id){const x=P.find(p=>p.id==id)||{name:"",price:"",promo_price:"",stock:0,description:"",image_url:"",tiers:[]};$("ed").style.display="block";
-$("edb").innerHTML=`<h3>${id?"Edit":"Tambah"} Produk</h3>Nama<input id="pn" value="${esc(x.name)}">Harga<input id="pp" type="number" value="${x.price}">Harga promo (kosongkan jika tidak promo)<input id="ppr" type="number" value="${x.promo_price||""}">Stok<input id="ps" type="number" value="${x.stock}">Deskripsi<textarea id="pd">${x.description||""}</textarea>
+function openP(id){const x=P.find(p=>p.id==id)||{name:"",price:"",promo_price:"",stock:0,description:"",image_url:"",tiers:[],category:"",colors:[],sizes:[]};$("ed").style.display="block";
+$("edb").innerHTML=`<h3>${id?"Edit":"Tambah"} Produk</h3>Nama<input id="pn" value="${esc(x.name)}">Harga<input id="pp" type="number" value="${x.price}">Harga promo (kosongkan jika tidak promo)<input id="ppr" type="number" value="${x.promo_price||""}">Stok<input id="ps" type="number" value="${x.stock}">Deskripsi<textarea id="pd">${x.description||""}</textarea>Kategori (contoh: Kaos, Tas)<input id="pc" value="${esc(x.category)}">Pilihan warna (pisah koma)<input id="pcl" value="${esc((x.colors||[]).join(","))}" placeholder="Hitam,Putih,Merah">Pilihan ukuran (pisah koma)<input id="psz" value="${esc((x.sizes||[]).join(","))}" placeholder="S,M,L,XL">
 Harga grosir (jumlah:harga, pisah koma)<input id="pt" value="${(x.tiers||[]).map(t=>t.min+":"+t.price).join(",")}" placeholder="10:70000,50:65000">Foto produk<br><img id="pv" class="thumb" style="width:90px;height:90px" src="${esc(x.image_url)}"><input id="pf" type="file" accept="image/*" onchange="pv.src=URL.createObjectURL(this.files[0])"><br><br>
 <button onclick="saveP(${id||0})">Simpan</button> <button class="gray" onclick="$('ed').style.display='none'">Batal</button>`}
 async function saveP(id){let url=(P.find(p=>p.id==id)||{}).image_url||"";const f=$("pf").files[0];
 if(f){const path=Date.now()+".jpg",{error:e}=await db.storage.from("products").upload(path,await rs(f),{contentType:"image/jpeg"});if(e)return alert("Upload gagal: "+e.message);url=db.storage.from("products").getPublicUrl(path).data.publicUrl}
-const d={name:$("pn").value,price:+$("pp").value,promo_price:+$("ppr").value||null,stock:+$("ps").value,description:$("pd").value,tiers:ptr($("pt").value),image_url:url};
+const d={name:$("pn").value,price:+$("pp").value,promo_price:+$("ppr").value||null,stock:+$("ps").value,description:$("pd").value,tiers:ptr($("pt").value),image_url:url,category:$("pc").value.trim()||null,colors:sp($("pcl").value),sizes:sp($("psz").value)};
 if(!d.name)return alert("Nama wajib diisi");const{error}=id?await db.from("products").update(d).eq("id",id):await db.from("products").insert(d);
 if(error)return alert(error.message);$("ed").style.display="none";loadP()}
 const rowH=i=>`<div class="row r"><input class="rn" value="${esc(i.name)}" placeholder="Nama barang/biaya" style="flex:1"><input class="rq" type="number" value="${i.qty}" style="width:70px" oninput="calc()"><input class="rp" type="number" value="${i.price}" style="width:110px" oninput="calc()"></div>`;
@@ -45,5 +46,7 @@ $("edb").innerHTML=`<h3>Pesanan #${id} - ${x.customer_name}</h3><small>Ubah juml
 async function saveO(){const id=$("ed").dataset.id,it=get();const{error}=await db.from("orders").update({items:it,total:sum(it)}).eq("id",id);if(error)return alert(error.message);alert("Tersimpan");loadO()}
 function printO(){const id=$("ed").dataset.id,x=O.find(o=>o.id==id),it=get();
 const w=window.open("");w.document.write(`<html><body style="font:12px monospace;width:58mm;margin:0 auto"><h3 style="text-align:center;margin:4px">${CFG.STORE_NAME}</h3><div style="text-align:center">${new Date(x.created_at).toLocaleString("id-ID")}<br>Order #${id}</div><hr>Pembeli: ${x.customer_name}<br>${x.phone}<br>${x.address}<hr>`+it.map(i=>`${i.name}<br>${i.qty} x ${rp(i.price)}<span style="float:right">${rp(i.qty*i.price)}</span><br>`).join("")+`<hr><b>TOTAL<span style="float:right">${rp(sum(it))}</span></b><p style="text-align:center">Terima kasih</p></body></html>`);w.document.close();w.focus();w.print()}
+let ev;addEventListener("beforeinstallprompt",e=>{e.preventDefault();ev=e;$("inst").style.display=""});const inst=()=>ev&&ev.prompt();
 init();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");
 </script></body></html>

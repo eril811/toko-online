@@ -1,38 +1,57 @@
 <!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Toko Online</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head><body>
-<header><b id="nm"></b><input id="q" placeholder="🔍 Cari produk..." oninput="show()" style="max-width:240px;margin:0 8px"><button onclick="tgl()">🛒 <span id="cnt">0</span></button></header>
-<section class="hero"><small>KOLEKSI PILIHAN</small><h1 id="bt"></h1><p id="bx"></p><a class="btn gold" href="#produk">Belanja Sekarang</a></section>
-<main id="produk"><div class="chips"><button class="on" data-f="all" onclick="flt(this)">Semua</button><button data-f="promo" onclick="flt(this)">🔥 Promo</button><button data-f="new" onclick="flt(this)">✨ Baru</button></div><div class="grid" id="list">Memuat...</div></main>
-<footer>© <span id="yr"></span> <span id="fn"></span> · Pesan mudah via WhatsApp</footer><a id="wa" class="wafab" target="_blank">💬</a>
-<div id="cart"><h3>Keranjang</h3><div id="items"></div><h4>Total: <span id="tot"></span></h4>
-<input id="n" placeholder="Nama"><input id="p" placeholder="No. WhatsApp"><textarea id="a" placeholder="Alamat lengkap"></textarea>
-<button onclick="order()">Pesan Sekarang</button> <button class="gray" onclick="tgl()">Tutup</button></div>
+<title>Toko Online</title><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#f1f1f1"><link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet"><link rel="stylesheet" href="shop.css"></head><body>
+<div class="app"><div class="top"><span class="logo" id="nm"></span><button id="inst" class="chip2" onclick="inst()" style="display:none">⬇ Pasang Aplikasi</button><button class="ib" onclick="tgl()">🛍<i class="dot cnt">0</i></button></div>
+<h1>Discover</h1><p class="sub" id="bx"></p>
+<div class="promo"><small>🔥 PROMO</small><b id="bt"></b></div>
+<input id="q" placeholder="Cari produk..." oninput="show()">
+<div class="chips" id="chips"><button class="on" data-f="all" onclick="flt(this)">Semua</button><button data-f="promo" onclick="flt(this)">🔥 Promo</button><button data-f="new" onclick="flt(this)">✨ Baru</button><button data-f="fav" onclick="flt(this)">♥ Favorit</button></div>
+<h4 id="sec">Semua Produk</h4><div class="cols" id="list">Memuat...</div>
+<footer>© <span id="yr"></span> <span id="fn"></span></footer></div>
+<div class="nav"><button class="on" onclick="scrollTo(0,0)">⌂</button><button onclick="flt(document.querySelector('[data-f=fav]'));scrollTo(0,300)">♡</button><button onclick="tgl()">🛍<i class="dot cnt">0</i></button><a id="wa" target="_blank">💬</a></div>
+<div id="sheet"></div>
+<div id="cart"><div class="cw"><div class="ch"><button class="rb" onclick="tgl()">‹</button><b>Keranjang</b></div><div id="items"></div>
+<div class="sum"><span>Total</span><span id="tot"></span></div><input id="cn" placeholder="Nama"><input id="cp" placeholder="No. WhatsApp"><textarea id="ca" placeholder="Alamat lengkap"></textarea><button class="blk" onclick="order()">Checkout</button></div></div>
+<div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
 <script>
 const db=supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY),rp=n=>"Rp"+Number(n).toLocaleString("id-ID"),$=i=>document.getElementById(i);
 const base=p=>p.promo_price>0?p.promo_price:p.price,isNew=p=>Date.now()-new Date(p.created_at)<12096e5;
 const U=(p,q)=>{const t=(p.tiers||[]).filter(x=>q>=x.min).sort((a,b)=>b.min-a.min)[0];return t?t.price:base(p)};
-let P=[],F="all",C=JSON.parse(localStorage.getItem("cart")||"{}");
-$("nm").textContent=CFG.STORE_NAME;document.title=CFG.STORE_NAME;
-$("bt").textContent=CFG.BANNER_TITLE||"Koleksi Terbaik, Harga Terbaik";$("bx").textContent=CFG.BANNER_TEXT||"Belanja mudah, pesan langsung lewat WhatsApp";
-$("yr").textContent=new Date().getFullYear();$("fn").textContent=CFG.STORE_NAME;CFG.WA_NUMBER?$("wa").href="https://wa.me/"+CFG.WA_NUMBER:$("wa").style.display="none";
+let P=[],F="all",D=null,C=JSON.parse(localStorage.getItem("cart2")||"{}"),FAV=JSON.parse(localStorage.getItem("fav")||"[]");
+$("nm").textContent=CFG.STORE_NAME;document.title=CFG.STORE_NAME;$("fn").textContent=CFG.STORE_NAME;$("yr").textContent=new Date().getFullYear();
+$("bt").textContent=CFG.BANNER_TITLE||"Koleksi terbaik, harga terbaik";$("bx").textContent=CFG.BANNER_TEXT||"temukan produk pilihan Anda";
+CFG.WA_NUMBER?$("wa").href="https://wa.me/"+CFG.WA_NUMBER:$("wa").style.display="none";
+const toast=t=>{const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(window.tt);window.tt=setTimeout(()=>e.style.display="none",1800)};
 function tgl(){const c=$("cart");c.style.display=c.style.display=="block"?"none":"block"}
-function flt(b){F=b.dataset.f;document.querySelectorAll(".chips button").forEach(x=>x.classList.toggle("on",x==b));show()}
-function card(p){return`<div class="card">${p.promo_price>0?'<span class="badge">PROMO</span>':""}${isNew(p)?'<span class="badge b2">BARU</span>':""}<img src="${p.image_url||""}" alt=""><div><b>${p.name}</b><small>${p.description||""}</small>${(p.tiers||[]).length?"<small>Grosir: "+p.tiers.map(x=>"≥"+x.min+" = "+rp(x.price)).join(", ")+"</small>":""}
-<span class="price">${rp(base(p))} ${p.promo_price>0?`<span class="old">${rp(p.price)}</span>`:""}</span><button onclick="add(${p.id})" ${p.stock<1?"disabled":""}>${p.stock<1?"Habis":"+ Keranjang"}</button></div></div>`}
-function show(){const q=$("q").value.toLowerCase();$("list").innerHTML=P.filter(p=>p.name.toLowerCase().includes(q)&&(F=="all"||(F=="promo"&&p.promo_price>0)||(F=="new"&&isNew(p)))).map(card).join("")||"Produk tidak ditemukan"}
-function save(){localStorage.setItem("cart",JSON.stringify(C));draw()}
-function add(id){const p=P.find(x=>x.id==id);if((C[id]||0)>=p.stock)return alert("Stok terbatas");C[id]=(C[id]||0)+1;save()}
-function chg(id,d){const p=P.find(x=>x.id==id);if(d>0&&C[id]>=p.stock)return alert("Stok terbatas");C[id]+=d;if(C[id]<=0)delete C[id];save()}
-function draw(){let t=0,n=0,h="";for(const id in C){const p=P.find(x=>x.id==id);if(!p)continue;const u=U(p,C[id]);t+=u*C[id];n+=C[id];
-h+=`<div class="row"><span>${p.name}<br>${rp(u)}</span><span><button onclick="chg(${id},-1)">-</button> ${C[id]} <button onclick="chg(${id},1)">+</button></span></div>`}
-$("items").innerHTML=h||"Kosong";$("tot").textContent=rp(t);$("cnt").textContent=n}
+function flt(b){F=b.dataset.f;document.querySelectorAll(".chips button").forEach(x=>x.classList.toggle("on",x==b));$("sec").textContent=b.textContent.replace(/[🔥✨♥]\s?/,"")+(F=="all"?" Produk":"");show()}
+function fav(id){FAV=FAV.includes(id)?FAV.filter(x=>x!=id):[...FAV,id];localStorage.setItem("fav",JSON.stringify(FAV));show()}
+const hv=p=>(p.colors||[]).length||(p.sizes||[]).length;
+const card=p=>`<div class="pc" onclick="openD(${p.id})"><img src="${p.image_url||""}" loading="lazy" alt="">${p.stock<1?'<i class="tag n">HABIS</i>':p.promo_price>0?'<i class="tag">PROMO</i>':isNew(p)?'<i class="tag n">BARU</i>':""}<button class="hr ${FAV.includes(p.id)?"on":""}" onclick="event.stopPropagation();fav(${p.id})">♥</button>
+<div class="ov"><span><small>${p.name}</small><b>${rp(base(p))}</b> ${p.promo_price>0?`<s>${rp(p.price)}</s>`:""}</span><button class="bg" ${p.stock<1?"disabled":""} onclick="event.stopPropagation();${hv(p)?`openD(${p.id})`:`add(${p.id},1)`}">＋</button></div></div>`;
+function show(){const q=$("q").value.toLowerCase();$("list").innerHTML=P.filter(p=>p.name.toLowerCase().includes(q)&&(F=="all"||(F=="promo"&&p.promo_price>0)||(F=="new"&&isNew(p))||(F=="fav"&&FAV.includes(p.id))||(F.startsWith("cat:")&&p.category==F.slice(4)))).map(card).join("")||'<p class="em">Produk tidak ditemukan</p>'}
+function save(){localStorage.setItem("cart2",JSON.stringify(C));draw()}
+const pq=id=>Object.values(C).filter(l=>l.id==id).reduce((s,l)=>s+l.q,0);
+function add(id,n,c,s){const p=P.find(x=>x.id==id);if(pq(id)+n>p.stock)return toast("Stok terbatas");const k=id+"|"+(c||"")+"|"+(s||"");C[k]=C[k]||{id,c:c||"",s:s||"",q:0};C[k].q+=n;save();toast("Masuk keranjang ✓")}
+function chg(k,d){const l=C[k],p=P.find(x=>x.id==l.id);if(d>0&&pq(l.id)>=p.stock)return toast("Stok terbatas");l.q+=d;if(l.q<=0)delete C[k];save()}
+function pick(b,k){D[k]=b.textContent;b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x==b))}
+function addD(){const p=P.find(x=>x.id==D.id);if((p.colors||[]).length&&!D.c)return toast("Pilih warna dulu");if((p.sizes||[]).length&&!D.s)return toast("Pilih ukuran dulu");add(D.id,D.q,D.c,D.s);$("sheet").style.display="none"}
+function openD(id){const p=P.find(x=>x.id==id);D={id,q:1,c:"",s:""};const op=(a,t,k)=>(a||[]).length?`<h5>${t}</h5><div class="op">`+a.map(v=>`<button onclick="pick(this,'${k}')">${v}</button>`).join("")+"</div>":"";
+$("sheet").innerHTML=`<div class="sh"><button class="rb" onclick="$('sheet').style.display='none'">‹</button><img src="${p.image_url||""}" alt=""><div class="body"><div class="t"><h2>${p.name}</h2><div class="pr">${rp(base(p))}${p.promo_price>0?`<s>${rp(p.price)}</s>`:""}</div></div><p>${p.description||""}</p>${(p.tiers||[]).length?'<div class="gr">💰 Harga grosir: '+p.tiers.map(x=>"≥"+x.min+" = "+rp(x.price)).join(" · ")+"</div>":""}${op(p.colors,"Warna","c")}${op(p.sizes,"Ukuran","s")}<small>Stok: ${p.stock}</small>
+<div class="q"><button onclick="dq(-1)">−</button><b id="dq">1</b><button onclick="dq(1)">＋</button></div><button class="blk" ${p.stock<1?"disabled":""} onclick="addD()">Tambah ke Keranjang · <span id="dt"></span></button></div></div>`;$("sheet").style.display="block";dq(0)}
+function dq(d){const p=P.find(x=>x.id==D.id);D.q=Math.max(1,Math.min(Math.max(p.stock,1),D.q+d));$("dq").textContent=D.q;$("dt").textContent=rp(U(p,D.q)*D.q)}
+function draw(){let t=0,n=0,h="";for(const k in C){const l=C[k],p=P.find(x=>x.id==l.id);if(!p)continue;const u=U(p,pq(l.id));t+=u*l.q;n+=l.q;
+h+=`<div class="ci"><img src="${p.image_url||""}" alt=""><div><b>${p.name}</b><small>${[l.c,l.s].filter(Boolean).join(" · ")}</small><span>${rp(u)}</span></div><div class="st"><button onclick="chg('${k}',-1)">−</button><b>${l.q}</b><button onclick="chg('${k}',1)">＋</button></div></div>`}
+$("items").innerHTML=h||'<p class="em">Keranjang masih kosong</p>';$("tot").textContent=rp(t);document.querySelectorAll(".cnt").forEach(e=>{e.textContent=n;e.style.display=n?"flex":"none"})}
+function cats(){[...new Set(P.map(p=>p.category).filter(Boolean))].forEach(c=>$("chips").insertAdjacentHTML("beforeend",`<button data-f="cat:${c.replace(/"/g,"")}" onclick="flt(this)">${c}</button>`))}
 (async()=>{const{data,error}=await db.from("products").select("*").eq("active",true).order("id",{ascending:false});
-if(error){$("list").textContent="Gagal memuat: "+error.message;return}P=data;show();draw()})();
-async function order(){const items=Object.keys(C).map(id=>{const p=P.find(x=>x.id==id);return{id:p.id,name:p.name,price:U(p,C[id]),qty:C[id]}});
-if(!items.length)return alert("Keranjang kosong");const name=$("n").value.trim(),phone=$("p").value.trim(),addr=$("a").value.trim();
-if(!name||!phone||!addr)return alert("Lengkapi data");const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+if(error){$("list").textContent="Gagal memuat: "+error.message;return}P=data;cats();show();draw()})();
+async function order(){const items=Object.values(C).map(l=>{const p=P.find(x=>x.id==l.id);return{id:p.id,name:p.name+(l.c?" - "+l.c:"")+(l.s?" / "+l.s:""),price:U(p,pq(l.id)),qty:l.q}});
+if(!items.length)return toast("Keranjang kosong");const name=$("cn").value.trim(),phone=$("cp").value.trim(),addr=$("ca").value.trim();
+if(!name||!phone||!addr)return alert("Lengkapi nama, WhatsApp, dan alamat");const total=items.reduce((s,i)=>s+i.price*i.qty,0);
 const{error}=await db.from("orders").insert({customer_name:name,phone,address:addr,items,total});if(error)return alert(error.message);
 let wa="";if(CFG.WA_NUMBER){const m=`Halo ${CFG.STORE_NAME}, saya ${name}\nNo: ${phone}\n\nPesanan:\n`+items.map(i=>`- ${i.name} x${i.qty} = ${rp(i.price*i.qty)}`).join("\n")+`\n\nTotal: ${rp(total)}\nAlamat: ${addr}`;wa=`https://wa.me/${CFG.WA_NUMBER}?text=${encodeURIComponent(m)}`}
 C={};save();tgl();alert("Pesanan terkirim, terima kasih!");if(wa)location.href=wa}
+let ev;addEventListener("beforeinstallprompt",e=>{e.preventDefault();ev=e;$("inst").style.display=""});const inst=()=>ev&&ev.prompt();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");
 </script></body></html>
